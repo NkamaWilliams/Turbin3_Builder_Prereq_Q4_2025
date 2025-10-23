@@ -19,6 +19,7 @@ pub struct Deposit<'info> {
         mint::token_program = token_program
     )]
     pub mint_x: InterfaceAccount<'info, Mint>,
+
     #[account(
         mint::token_program = token_program
     )]
@@ -31,44 +32,49 @@ pub struct Deposit<'info> {
         bump = config.config_bump
     )]
     pub config: Account<'info, Config>,
+
     #[account(
         mut,
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump,
     )]
     pub mint_lp: InterfaceAccount<'info, Mint>,
+
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config,
     )]
-    pub vault_x: InterfaceAccount<'info, TokenAccount>,
+    pub vault_x: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: InterfaceAccount<'info, TokenAccount>,
+    pub vault_y: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = user,
     )]
-    pub user_x: InterfaceAccount<'info, TokenAccount>,
+    pub user_x: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = user,
     )]
-    pub user_y: InterfaceAccount<'info, TokenAccount>,
+    pub user_y: Box<InterfaceAccount<'info, TokenAccount>>,
+    
     #[account(
         init_if_needed,
         payer = user,
         associated_token::mint = mint_lp,
         associated_token::authority = user,
     )]
-    pub user_lp: InterfaceAccount<'info, TokenAccount>,
+    pub user_lp: Box<InterfaceAccount<'info, TokenAccount>>,
     
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
