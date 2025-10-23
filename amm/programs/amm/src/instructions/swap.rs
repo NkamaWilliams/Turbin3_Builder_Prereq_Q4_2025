@@ -84,6 +84,7 @@ impl<'info> Swap<'info> {
             false => ConstantProduct::delta_x_from_y_swap_amount(self.vault_x.amount, self.vault_y.amount, amount).map_err(AmmError::from)?
         };
 
+        // Amount should at least be min
         require!(amount_out >= min, AmmError::SlippageExceeded);
 
         self.deposit_tokens(is_x, amount)?;
