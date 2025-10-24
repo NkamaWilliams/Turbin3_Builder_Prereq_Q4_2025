@@ -33,12 +33,6 @@ pub struct Swap<'info> {
 
     #[account(
         mut,
-        seeds = [b"lp", config.key().as_ref()],
-        bump = config.lp_bump,
-    )]
-    pub mint_lp: InterfaceAccount<'info, Mint>,
-    #[account(
-        mut,
         associated_token::mint = mint_x,
         associated_token::authority = config,
     )]

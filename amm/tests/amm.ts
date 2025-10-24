@@ -15,7 +15,7 @@ describe("amm", () => {
   const user = provider.wallet.payer;
   const mints_authority = anchor.web3.Keypair.generate();
 
-  const SEED = new anchor.BN(72);
+  const SEED = new anchor.BN(74);
   const DECIMALS = 6;
 
   // Mints
@@ -98,12 +98,78 @@ describe("amm", () => {
       let vaultYBal = (await provider.connection.getTokenAccountBalance(vault_y)).value;
       let userLpBalance = (await provider.connection.getTokenAccountBalance(user_ata_lp)).value;
 
-      assert(vaultXBal.amount <= `100`, `Invalid vault_x balance. Expected 100 found ${vaultXBal}`)
-      assert(vaultYBal.amount <= `50`, `Invalid vault_x balance. Expected 100 found ${vaultYBal}`)
-      assert(userLpBalance.amount <= `5000`, `Invalid vault_x balance. Expected 100 found ${userLpBalance}`);
+      assert(vaultXBal.amount == `100`, `Invalid vault_x balance. Expected 100 found ${vaultXBal}`)
+      assert(vaultYBal.amount == `50`, `Invalid vault_x balance. Expected 100 found ${vaultYBal}`)
+      assert(userLpBalance.amount == `5000`, `Invalid vault_x balance. Expected 100 found ${userLpBalance}`);
 
+      console.log("VaultX balance:", vaultXBal);
+      console.log("VaultY balance:", vaultYBal);
+      console.log("UserLp balance:", userLpBalance);
       console.log("Your transaction signature", tx);
   });
+
+  it("Swapped 25units X for 10units of Y", async () => {
+    const tx = await program.methods
+      .swap(true, new anchor.BN(25), new anchor.BN(10))
+      .accountsPartial({
+        user: user.publicKey,
+        config,
+        mintX: mint_x,
+        mintY: mint_y,
+        vaultX: vault_x,
+        vaultY: vault_y,
+        userX: user_ata_x,
+        userY: user_ata_y,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SYSTEM_PROGRAM_ID
+      })
+      .rpc();
+    
+    let vaultXBal = (await provider.connection.getTokenAccountBalance(vault_x)).value;
+    let vaultYBal = (await provider.connection.getTokenAccountBalance(vault_y)).value;
+
+    assert(vaultXBal.amount == `125`, `Invalid vault_x balance. Expected 125 found ${vaultXBal}`)
+    assert(vaultYBal.amount == `40`, `Invalid vault_x balance. Expected 40 found ${vaultYBal}`)
+
+    console.log("VaultX balance:", vaultXBal);
+    console.log("VaultY balance:", vaultYBal);
+    console.log("Your transaction signature", tx);
+  });
+
+  it("Withdraw from pool using the 5000LP tokens", async () => {
+    const tx = await program.methods
+      .withdraw(new anchor.BN(5000), new anchor.BN(125), new anchor.BN(40))
+      .accountsPartial({
+        user: user.publicKey,
+        config,
+        mintX: mint_x,
+        mintY: mint_y,
+        mintLp: mint_lp,
+        vaultX: vault_x,
+        vaultY: vault_y,
+        userX: user_ata_x,
+        userY: user_ata_y,
+        userLp: user_ata_lp,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SYSTEM_PROGRAM_ID
+      })
+      .rpc()
+
+    let vaultXBal = (await provider.connection.getTokenAccountBalance(vault_x)).value;
+    let vaultYBal = (await provider.connection.getTokenAccountBalance(vault_y)).value;
+    let userLpBalance = (await provider.connection.getTokenAccountBalance(user_ata_lp)).value;
+
+    assert(vaultXBal.amount == `0`, `Invalid vault_x balance. Expected 0 found ${vaultXBal}`);
+    assert(vaultYBal.amount == `0`, `Invalid vault_x balance. Expected 0 found ${vaultYBal}`);
+    assert(userLpBalance.amount == `0`, `Invalid vault_x balance. Expected 0 found ${userLpBalance}`);
+
+    console.log("VaultX balance:", vaultXBal);
+    console.log("VaultY balance:", vaultYBal);
+    console.log("UserLp balance:", userLpBalance);
+    console.log("Your transaction signature", tx);
+  })
 
   // TODO: Complete the rest of the tests
 });
