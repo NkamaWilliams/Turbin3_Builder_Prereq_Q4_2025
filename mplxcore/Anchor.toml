@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-mplxcore = "7s527xEE6GkjUJsWLapDVSEWi2vSJp5kUt5iutag6M2R"
+mplxcore = "72sncXoP5FUSmoBUTQvJwMQBYFR6br9aBdsBNJQEmjGs"
 
 [registry]
 url = "https://api.apr.dev"
