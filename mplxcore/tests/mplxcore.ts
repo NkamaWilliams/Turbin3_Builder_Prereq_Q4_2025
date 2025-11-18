@@ -297,7 +297,11 @@ describe("anchor-mplxcore-q4-25", () => {
         })
         .signers([creator])
         .rpc();
-
+      
+      const assetv1 = await fetchAsset(umi, asset.publicKey.toString());
+      const collectionv1 = await fetchCollectionV1(umi, publicKey(collection.publicKey.toString()));
+      
+      assert.isFalse(await isFrozen(assetv1, collectionv1));
     });
 
     it("Fails to thaw with unauthorized authority", async () => {

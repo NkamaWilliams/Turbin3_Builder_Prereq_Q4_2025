@@ -1,0 +1,2 @@
+pub const MAX_PLAYERS_PER_GAME: u8 = 10;
+pub const MIN_STAKE_AMOUNT: u64 = 10_000_000;
