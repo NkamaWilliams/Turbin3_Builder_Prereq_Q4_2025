@@ -7,6 +7,7 @@ pub mod end_session;
 pub mod whitelist_creators;
 pub mod collection;
 pub mod mint_nft;
+pub mod withdraw;
 
 pub use create_player::*;
 pub use update_player::*;
@@ -17,3 +18,4 @@ pub use end_session::*;
 pub use whitelist_creators::*;
 pub use collection::*;
 pub use mint_nft::*;
+pub use withdraw::*;

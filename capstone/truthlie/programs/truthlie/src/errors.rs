@@ -6,6 +6,8 @@ pub enum TruthLieError {
     NoSuchAchievement,
     #[msg("Insufficient balance to pay stake amount")]
     InsufficientBalanceForStake,
+    #[msg("Insufficient funds in vault")]
+    InsufficientFunds,
     #[msg("Maximum supported players exceeded")]
     MaximumPlayersExceeded,
     #[msg("Maximum players for game session reached")]

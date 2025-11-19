@@ -536,7 +536,7 @@ describe("truthlie", () => {
         roundsCompleted: 4,
         playerScores: [
           {pubkey: player.publicKey, score: 5},
-          {pubkey: player2.publicKey, score: 5},
+          {pubkey: player2.publicKey, score: 4},
         ]
       };
 
@@ -555,11 +555,6 @@ describe("truthlie", () => {
             pubkey: playerVaultPda,
             isSigner: false,
             isWritable: true
-          },
-          {
-            pubkey: player2VaultPda,
-            isSigner: false,
-            isWritable: true
           }
         ])
         .rpc();
@@ -570,6 +565,32 @@ describe("truthlie", () => {
       console.log("Inital Vault Balance", vaultInitial);
       console.log("Final Vault Balance", vaultFinal);
       assert(vaultFinal > vaultInitial, "Amount in winner's vault must increase");
+    });
+
+    it("Withdraw Funds from Player Vault", async () => {
+      const vaultInitial = await provider.connection.getBalance(playerVaultPda);
+      const playerInitial = await provider.connection.getBalance(player.publicKey);
+      const withdrawAmount = 10_000_000;
+      const tx = await program.methods.withdrawFunds(new anchor.BN(withdrawAmount))
+        .accountsStrict({
+          systemProgram: SYSTEM_PROGRAM_ID,
+          payer: player.publicKey,
+          playerStats: playerStatsPda,
+          vault: playerVaultPda
+        })
+        .signers([player])
+        .rpc();
+      
+      const vaultFinal = await provider.connection.getBalance(playerVaultPda);
+      const playerFinal = await provider.connection.getBalance(player.publicKey);
+
+      console.log("Player Initial Balance", playerInitial);
+      console.log("Player Final Balance", playerFinal);
+      console.log("Vault Initial Balance", vaultInitial);
+      console.log("Vault Final Balance", vaultFinal);
+
+      assert(vaultFinal + withdrawAmount == vaultInitial, "Withdraw amount not correctly deducted from vault");
+      assert(playerFinal > playerInitial, "Player did not receive withdrawn funds");
     });
   });
 });

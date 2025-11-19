@@ -31,6 +31,10 @@ pub mod truthlie {
         ctx.accounts.close_player()
     }
 
+    pub fn withdraw_funds(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+        ctx.accounts.withdraw(amount)
+    }
+
     pub fn create_session(ctx: Context<CreateGameSession>, seed: u64, input: GameSessionInput) -> Result<()> {
         ctx.accounts.create_session(seed, input, ctx.bumps)
     }
