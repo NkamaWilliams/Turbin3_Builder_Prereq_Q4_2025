@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    program::Truthlie, state::WhitelistedCreators
+    errors::TruthLieError, program::Truthlie, state::WhitelistedCreators
 };
 
 #[derive(Accounts)]
@@ -19,9 +19,9 @@ pub struct WhitelistCreator<'info> {
     )]
     pub whitelisted_creators: Account<'info, WhitelistedCreators>,
     pub system_program: Program<'info, System>,
-    #[account(constraint = this_program.programdata_address()? == Some(program_data.key()))]
-    pub this_program: Program<'info, Truthlie>,
-    #[account(constraint = program_data.upgrade_authority_address == Some(admin.key()))]
+    #[account(constraint = truthlie_program.programdata_address()? == Some(program_data.key()))]
+    pub truthlie_program: Program<'info, Truthlie>,
+    #[account(constraint = program_data.upgrade_authority_address == Some(admin.key()) @ TruthLieError::NotAuthorized)]
     pub program_data: Account<'info, ProgramData>
 }
 

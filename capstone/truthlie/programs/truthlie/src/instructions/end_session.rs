@@ -27,7 +27,7 @@ pub struct EndGameSession<'info> {
     pub system_program: Program<'info, System>,
     #[account(constraint = truthlie_program.programdata_address()? == Some(program_data.key()))]
     pub truthlie_program: Program<'info, Truthlie>,
-    #[account(constraint = program_data.upgrade_authority_address == Some(payer.key()))]
+    #[account(constraint = program_data.upgrade_authority_address == Some(payer.key()) @TruthLieError::NotAuthorized)]
     pub program_data: Account<'info, ProgramData>
 }
 

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{state::PlayerStats, utils::Achievement, program::Truthlie};
+use crate::{errors::TruthLieError, program::Truthlie, state::PlayerStats, utils::Achievement};
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct PlayerStatsInput {
@@ -25,7 +25,7 @@ pub struct UpdatePlayer<'info> {
     pub system_program: Program<'info, System>,
     #[account(constraint = truthlie_program.programdata_address()? == Some(program_data.key()))]
     pub truthlie_program: Program<'info, Truthlie>,
-    #[account(constraint = program_data.upgrade_authority_address == Some(payer.key()))]
+    #[account(constraint = program_data.upgrade_authority_address == Some(payer.key()) @TruthLieError::NotAuthorized)]
     pub program_data: Account<'info, ProgramData>
 }
 

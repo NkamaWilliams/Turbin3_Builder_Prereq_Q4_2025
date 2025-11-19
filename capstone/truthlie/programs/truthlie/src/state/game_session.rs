@@ -18,7 +18,8 @@ pub struct GameSession {
     pub max_players: u8,
     pub bump: u8,
     pub rounds: u8,
-    pub vault_bump: u8
+    pub vault_bump: u8,
+    pub is_started: bool
 }
 
 impl GameSession {

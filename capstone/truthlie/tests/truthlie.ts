@@ -3,11 +3,16 @@ import { Program } from "@coral-xyz/anchor";
 import { Truthlie } from "../target/types/truthlie";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { assert } from "chai";
+import { fetchAsset, fetchCollectionV1, isAssetOwner, isFrozen, MPL_CORE_PROGRAM_ID, mplCore } from "@metaplex-foundation/mpl-core"
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { publicKey } from "@metaplex-foundation/umi";
 
 /// TODO:
 /// Ensure only program upgrade authority that can update player_stats
 
 describe("truthlie", () => {
+  const umi = createUmi('http://127.0.0.1:8899');
+  umi.use(mplCore());
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -22,6 +27,9 @@ describe("truthlie", () => {
   const player = anchor.web3.Keypair.generate();
   const player2 = anchor.web3.Keypair.generate();
   const invalidPlayer = anchor.web3.Keypair.generate();
+  const creator = anchor.web3.Keypair.generate();
+  const collection = anchor.web3.Keypair.generate();
+  const nftAsset = anchor.web3.Keypair.generate();
 
   // Generate PDAs
   const [playerStatsPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("stats"), player.publicKey.toBuffer()], program.programId);
@@ -30,6 +38,8 @@ describe("truthlie", () => {
   const [player2VaultPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("vault"), player2.publicKey.toBuffer()], program.programId);
   const [gameSessionPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("session"), SEED.toBuffer("le", 8)], program.programId);
   const [gameVaultPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("vault"), gameSessionPda.toBuffer()], program.programId);
+  const [whitelistPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("whitelist")], program.programId);
+  const [collectionAuthorityPda] = anchor.web3.PublicKey.findProgramAddressSync([Buffer.from("collection_authority"), collection.publicKey.toBuffer()], program.programId);
 
   // Special accounts
   let programDataAccount: anchor.web3.PublicKey;
@@ -41,6 +51,8 @@ describe("truthlie", () => {
   console.log("playerVaultPda", playerVaultPda.toString());
   console.log("gameSessionPda", gameSessionPda.toString());
   console.log("gameVaultPda", gameVaultPda.toString());
+  console.log("nft asset", nftAsset.publicKey.toString());
+  console.log("nft collection", collection.publicKey.toString());
 
   before("Fund Necessary Accounts", async () => {
     await provider.connection.requestAirdrop(player.publicKey, 2_000_000_000);
@@ -58,6 +70,68 @@ describe("truthlie", () => {
     // Verify ProgramData exists after deployment
     const programData = await provider.connection.getAccountInfo(programDataAccount);
     assert.ok(programData, "ProgramData should exist after deployment");
+  });
+
+  describe("Whitelist NFT Creator and Create Collection", () => {
+    it("Whitelist", async () => {
+      const tx = await program.methods.whitelistCreator()
+        .accountsStrict({
+          admin: provider.publicKey,
+          creator: provider.publicKey,
+          whitelistedCreators: whitelistPda,
+          programData: programDataAccount,
+          systemProgram: SYSTEM_PROGRAM_ID,
+          truthlieProgram: program.programId
+        })
+        .rpc();
+
+      const whitelistedCreators = await program.account.whitelistedCreators.fetch(whitelistPda);
+      assert(whitelistedCreators.creators.map(p => p.toString()).includes(provider.publicKey.toString()), "Failed to correctly whitelist creator");
+    });
+
+    it("Whitelist - Failed", async () => {
+      try {
+        const tx = await program.methods.whitelistCreator()
+          .accountsStrict({
+            admin: player.publicKey,
+            creator: provider.publicKey,
+            whitelistedCreators: whitelistPda,
+            programData: programDataAccount,
+            systemProgram: SYSTEM_PROGRAM_ID,
+            truthlieProgram: program.programId
+          })
+          .signers([player])
+          .rpc();
+      } catch (err) {
+        if (err instanceof anchor.AnchorError) {
+          console.log(err.error.errorMessage);
+          assert(err.error.errorCode.code == "NotAuthorized", )
+        } else {
+          console.log(err);
+          assert.fail("Failed with unexpected error");
+        }
+      }
+    });
+
+    it("Create Achievements Collection", async () => {
+      const tx = await program.methods.createCollection({
+        name: "Truth Lie Achievements",
+        uri: "https://truthlieAchievement.png"
+      })
+        .accountsStrict({
+          coreProgram: MPL_CORE_PROGRAM_ID,
+          creator: provider.publicKey,
+          collection: collection.publicKey,
+          whitelistedCreators: whitelistPda,
+          systemProgram: SYSTEM_PROGRAM_ID,
+          collectionAuthority: collectionAuthorityPda
+        })
+        .signers([collection])
+        .rpc();
+      
+      const collectionAccount = await fetchCollectionV1(umi, publicKey(collection.publicKey.toString()));
+      assert(collectionAccount.numMinted == 0);
+    });
   });
 
   describe("Test Player Instructions", () => {
@@ -87,10 +161,12 @@ describe("truthlie", () => {
       const tx = await program.methods.updatePlayer({gamesPlayed: 1, correctGuesses: 5, wrongGuesses: 3})
         .accountsStrict({
           systemProgram: SYSTEM_PROGRAM_ID,
-          payer: player.publicKey,
-          playerStats: playerStatsPda
+          payer: provider.publicKey,
+          player: player.publicKey,
+          playerStats: playerStatsPda,
+          truthlieProgram: program.programId,
+          programData: programDataAccount
         })
-        .signers([player])
         .rpc();
       
       const stats = await program.account.playerStats.fetch(playerStatsPda);
@@ -107,15 +183,101 @@ describe("truthlie", () => {
       ])
         .accountsStrict({
           systemProgram: SYSTEM_PROGRAM_ID,
-          payer: player.publicKey,
-          playerStats: playerStatsPda
+          payer: provider.publicKey,
+          player: player.publicKey,
+          playerStats: playerStatsPda,
+          truthlieProgram: program.programId,
+          programData: programDataAccount
         })
-        .signers([player])
         .rpc();
       
       const stats = await program.account.playerStats.fetch(playerStatsPda);
       
       assert(stats.achievements.length == 2);
+    });
+
+    it("Update Player Achievements - Failed", async () => {
+      try {
+        const tx = await program.methods.unlockAchievements([
+          {believer: {}}
+        ])
+          .accountsStrict({
+            systemProgram: SYSTEM_PROGRAM_ID,
+            payer: player.publicKey,
+            player: player.publicKey,
+            playerStats: playerStatsPda,
+            truthlieProgram: program.programId,
+            programData: programDataAccount
+          })
+          .signers([player])
+          .rpc();
+        
+        const stats = await program.account.playerStats.fetch(playerStatsPda);
+        
+        assert(stats.achievements.length == 2);
+      } catch (err) {
+        if (err instanceof anchor.AnchorError) {
+          console.log(err.error.errorMessage);
+          assert(err.error.errorCode.code == "NotAuthorized")
+        }
+      }
+    });
+
+    it("Mint Minimalist NFT", async () => {
+      const tx = await program.methods.mintNft({
+        nftName: "Minimalist",
+        nftUri: "https://minimalist.png",
+        achievement: {minimalist:{}}
+      })
+      .accountsStrict({
+        playerStats: playerStatsPda,
+        asset: nftAsset.publicKey,
+        minter: player.publicKey,
+        collection: collection.publicKey,
+        collectionAuthority: collectionAuthorityPda,
+        coreProgram: MPL_CORE_PROGRAM_ID,
+        systemProgram: SYSTEM_PROGRAM_ID
+      })
+      .signers([nftAsset, player])
+      .rpc();
+      
+      const asset = await fetchAsset(umi, publicKey(nftAsset.publicKey.toString()));
+      const nftCollection = await fetchCollectionV1(umi, publicKey(collection.publicKey.toString()));
+      assert(isAssetOwner(player.publicKey.toString(), asset), "Player is not an owner of Minimalist NFT Asset");
+      assert(isFrozen(asset, nftCollection));
+    });
+
+    it("Mint Minimalist NFT - Failed", async () => {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const newAsset = anchor.web3.Keypair.generate();
+      try {
+        const tx = await program.methods.mintNft({
+          nftName: "Minimalist",
+          nftUri: "https://minimalist.png",
+          achievement: {minimalist:{}}
+        })
+        .accountsStrict({
+          playerStats: playerStatsPda,
+          asset: newAsset.publicKey,
+          minter: player.publicKey,
+          collection: collection.publicKey,
+          collectionAuthority: collectionAuthorityPda,
+          coreProgram: MPL_CORE_PROGRAM_ID,
+          systemProgram: SYSTEM_PROGRAM_ID
+        })
+        .signers([newAsset, player])
+        .rpc();
+        
+        assert.fail("TX should fail since nft has been minted");
+      } catch (err) {
+        if (err instanceof anchor.AnchorError) {
+          console.log(err.error.errorMessage);
+          assert(err.error.errorCode.code == "AchievementAlreadyMinted", "This should have failed since the asset has already been minted");
+        } else {
+          console.log(err);
+          assert.fail("Failed with unexpected error");
+        }
+      }
     });
 
     // it("Close Player Accounts", async () => {

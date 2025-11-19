@@ -34,7 +34,7 @@ pub enum TruthLieError {
     CreatorListAlreadyFull,
     #[msg("Creator already in white list")]
     CreatorAlreadyInWhitelist,
-    #[msg("The payer is not the program's upgrade authority")]
+    #[msg("The payer is not the program's upgrade authority or not approved")]
     NotAuthorized,
     #[msg("The collection has already been initialized")]
     CollectionAlreadyInitialized,

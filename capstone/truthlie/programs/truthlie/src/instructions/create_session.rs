@@ -46,6 +46,7 @@ impl<'info> CreateGameSession<'info> {
             max_players: input.max_players,
             bump: bumps.game_session,
             vault_bump: bumps.game_vault,
+            is_started: false
         });
 
         self.game_session.add_player(self.host.key());
